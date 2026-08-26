@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --blackboard: #1F3D33;
+    --blackboard-dark: #16302A;
+    --chalk: #F6F3EA;
+    --paper: #FBF6E9;
+    --marker-yellow: #F4B942;
+    --crayon-red: #E1533B;
+    --ruler-blue: #3E6FD9;
+    --pencil-graphite: #4A4A45;
+    --eraser-pink: #E9A0B0;
+
+    --background: var(--paper);
+    --foreground: var(--pencil-graphite);
+  }
+}
+
+/* Custom Chalkboard textures and utilities */
+.bg-blackboard {
+  background-color: #1F3D33;
+  background-image: radial-gradient(rgba(246, 243, 234, 0.05) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.bg-blackboard-dark {
+  background-color: #16302A;
+}
+
+.bg-paper {
+  background-color: #FBF6E9;
+  background-image: linear-gradient(to bottom, transparent 96%, rgba(74, 74, 69, 0.05) 96%);
+  background-size: 100% 28px;
+}
+
+.text-chalk {
+  color: #F6F3EA;
+}
+
+.text-graphite {
+  color: #4A4A45;
+}
+
+.text-marker-yellow {
+  color: #F4B942;
+}
+
+.text-crayon-red {
+  color: #E1533B;
+}
+
+.text-ruler-blue {
+  color: #3E6FD9;
+}
+
+.bg-marker-yellow {
+  background-color: #F4B942;
+}
+
+.bg-crayon-red {
+  background-color: #E1533B;
+}
+
+.bg-ruler-blue {
+  background-color: #3E6FD9;
+}
+
+.bg-eraser-pink {
+  background-color: #E9A0B0;
+}
+
+/* Hand-drawn button effect */
+.btn-chalk {
+  border-radius: 12px 14px 11px 15px;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 2px 3px 0px rgba(0, 0, 0, 0.25);
+}
+
+.btn-chalk:hover {
+  transform: translateY(-2px) rotate(-0.5deg);
+  box-shadow: 3px 5px 0px rgba(0, 0, 0, 0.3);
+}
+
+.btn-chalk:active {
+  transform: translateY(1px);
+  box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.25);
+}
+
+/* Torn paper edge SVG mask / divider */
+.torn-edge-top {
+  position: relative;
+}
+
+.torn-edge-top::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background-size: 24px 12px;
+  background-repeat: repeat-x;
+  background-image: radial-gradient(circle at 12px 0px, transparent 6px, #FBF6E9 6.5px);
+}
+
+/* Blackboard chalk frame */
+.chalkboard-frame {
+  border: 12px solid #5A3825;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 10px 25px rgba(0, 0, 0, 0.4);
+  border-radius: 14px;
+}
+
+/* Custom Scrollbar for chat */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(246, 243, 234, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(246, 243, 234, 0.5);
+}

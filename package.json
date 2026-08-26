@@ -1,0 +1,25 @@
+{
+  "name": "sketchai",
+  "version": "1.0.0",
+  "description": "SketchAI - Real-time multiplayer drawing & guessing game with AI semantic scoring, drawer accuracy scoring, and Fog of War reveal.",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "dev:ai": "cd ai-service && .\\.venv\\Scripts\\uvicorn main:app --port 8000 --reload",
+    "build:server": "npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "test:game": "cd server && npx tsx src/test-game-loop.ts"
+  },
+  "keywords": [
+    "sketchai",
+    "multiplayer",
+    "drawing-game",
+    "semantic-search",
+    "sentence-transformers",
+    "fastapi",
+    "socket.io",
+    "nextjs"
+  ],
+  "author": "",
+  "license": "MIT"
+}
