@@ -1,0 +1,35 @@
+services:
+  # 1. FastAPI AI Judging Microservice
+  - type: web
+    name: sketchai-ai-service
+    env: python
+    rootDir: ai-service
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: MODEL_NAME
+        value: all-MiniLM-L6-v2
+
+  # 2. Node.js Socket.io Game Server
+  - type: web
+    name: sketchai-game-server
+    env: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: AI_SERVICE_URL
+        fromService:
+          type: web
+          name: sketchai-ai-service
+          property: host
+      - key: CLIENT_URL
+        value: "*"
+      - key: DATABASE_URL
+        value: postgresql://postgres:pdoRntunTajz2Cqu@db.gtmurictbdvfkwkycwwt.supabase.co:5432/postgres
+      - key: JWT_SECRET
+        generateValue: true
