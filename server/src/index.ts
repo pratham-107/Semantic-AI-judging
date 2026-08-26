@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
 import { RoomService } from './services/roomService.js';
 import { RoundService } from './services/roundService.js';
+import { dbService } from './services/dbService.js';
 import { registerRoomHandlers } from './sockets/roomHandlers.js';
 import { registerGameHandlers } from './sockets/gameHandlers.js';
 
@@ -54,6 +55,12 @@ app.get('/room/:code', async (req, res) => {
   res.json(room);
 });
 
+app.get('/leaderboard', async (req, res) => {
+  const limit = parseInt(req.query.limit as string) || 10;
+  const leaderboard = await dbService.getLeaderboard(limit);
+  res.json({ leaderboard });
+});
+
 // Authoritative round timeout / end handler
 async function handleRoundEnd(roomCode: string) {
   const result = await RoundService.endRound(roomCode);
@@ -67,6 +74,8 @@ async function handleRoundEnd(roomCode: string) {
 
   if (gameEndPayload) {
     io.to(roomCode).emit('game:end', gameEndPayload);
+    // Asynchronously persist completed match to database
+    dbService.saveMatch(room, gameEndPayload);
   } else {
     // Cooldown countdown before starting next round automatically
     setTimeout(async () => {
