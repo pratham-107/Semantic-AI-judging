@@ -8,53 +8,84 @@ export function registerRoomHandlers(
   socket: Socket,
   onRoundTimeout: (roomCode: string) => Promise<void>
 ) {
-  // room:create
-  socket.on('room:create', async (payload: { playerName: string; settings?: Partial<RoomSettings>; avatarSeed?: string }, callback) => {
-    try {
-      const { playerName, settings, avatarSeed } = payload || {};
-      const result = await RoomService.createRoom(playerName, settings, avatarSeed);
-      
-      await RoomService.registerPlayerSocket(result.room.roomCode, result.hostPlayer.id, socket.id);
-      socket.join(result.room.roomCode);
-      socket.data.roomCode = result.room.roomCode;
-      socket.data.playerId = result.hostPlayer.id;
-
-      if (typeof callback === 'function') {
-        callback({ success: true, roomCode: result.room.roomCode, token: result.token, player: result.hostPlayer });
-      }
-      
-      io.to(result.room.roomCode).emit('room:state', result.room);
-    } catch (err: unknown) {
-      const message = (err as Error).message || 'Failed to create room';
-      socket.emit('error', { code: 'ROOM_CREATE_FAILED', message });
-      if (typeof callback === 'function') callback({ success: false, error: message });
+  // Helper to extract and verify auth token from payload or handshake
+  const getVerifiedAuth = (payloadToken?: string) => {
+    const rawToken = payloadToken || (socket.handshake.auth?.token as string);
+    if (!rawToken) {
+      throw new Error('Authentication required: Please sign in or register to create or join a classroom.');
     }
-  });
+    const decoded = RoomService.verifyPlayerToken(rawToken);
+    if (!decoded) {
+      throw new Error('Invalid or expired student session. Please log in again.');
+    }
+    return decoded;
+  };
+
+  // room:create
+  socket.on(
+    'room:create',
+    async (
+      payload: { playerName?: string; settings?: Partial<RoomSettings>; avatarSeed?: string; token?: string },
+      callback
+    ) => {
+      try {
+        const auth = getVerifiedAuth(payload?.token);
+        const playerName = auth.playerName || payload?.playerName || 'Student';
+        const { settings, avatarSeed } = payload || {};
+
+        const result = await RoomService.createRoom(playerName, settings, avatarSeed);
+
+        await RoomService.registerPlayerSocket(result.room.roomCode, result.hostPlayer.id, socket.id);
+        socket.join(result.room.roomCode);
+        socket.data.roomCode = result.room.roomCode;
+        socket.data.playerId = result.hostPlayer.id;
+
+        if (typeof callback === 'function') {
+          callback({ success: true, roomCode: result.room.roomCode, token: result.token, player: result.hostPlayer });
+        }
+
+        io.to(result.room.roomCode).emit('room:state', result.room);
+      } catch (err: unknown) {
+        const message = (err as Error).message || 'Failed to create room';
+        socket.emit('error', { code: 'ROOM_CREATE_FAILED', message });
+        if (typeof callback === 'function') callback({ success: false, error: message });
+      }
+    }
+  );
 
   // room:join
-  socket.on('room:join', async (payload: { roomCode: string; playerName: string; avatarSeed?: string; existingPlayerId?: string }, callback) => {
-    try {
-      const { roomCode, playerName, avatarSeed, existingPlayerId } = payload || {};
-      if (!roomCode) throw new Error('Room code is required');
+  socket.on(
+    'room:join',
+    async (
+      payload: { roomCode: string; playerName?: string; avatarSeed?: string; existingPlayerId?: string; token?: string },
+      callback
+    ) => {
+      try {
+        const auth = getVerifiedAuth(payload?.token);
+        const { roomCode, avatarSeed, existingPlayerId } = payload || {};
+        if (!roomCode) throw new Error('5-letter room code is required.');
 
-      const result = await RoomService.joinRoom(roomCode, playerName, avatarSeed, existingPlayerId);
-      
-      await RoomService.registerPlayerSocket(result.room.roomCode, result.player.id, socket.id);
-      socket.join(result.room.roomCode);
-      socket.data.roomCode = result.room.roomCode;
-      socket.data.playerId = result.player.id;
+        const playerName = auth.playerName || payload?.playerName || 'Student';
 
-      if (typeof callback === 'function') {
-        callback({ success: true, roomCode: result.room.roomCode, token: result.token, player: result.player });
+        const result = await RoomService.joinRoom(roomCode, playerName, avatarSeed, existingPlayerId);
+
+        await RoomService.registerPlayerSocket(result.room.roomCode, result.player.id, socket.id);
+        socket.join(result.room.roomCode);
+        socket.data.roomCode = result.room.roomCode;
+        socket.data.playerId = result.player.id;
+
+        if (typeof callback === 'function') {
+          callback({ success: true, roomCode: result.room.roomCode, token: result.token, player: result.player });
+        }
+
+        io.to(result.room.roomCode).emit('room:state', result.room);
+      } catch (err: unknown) {
+        const message = (err as Error).message || 'Failed to join room';
+        socket.emit('error', { code: 'ROOM_JOIN_FAILED', message });
+        if (typeof callback === 'function') callback({ success: false, error: message });
       }
-
-      io.to(result.room.roomCode).emit('room:state', result.room);
-    } catch (err: unknown) {
-      const message = (err as Error).message || 'Failed to join room';
-      socket.emit('error', { code: 'ROOM_JOIN_FAILED', message });
-      if (typeof callback === 'function') callback({ success: false, error: message });
     }
-  });
+  );
 
   // room:leave
   socket.on('room:leave', async () => {

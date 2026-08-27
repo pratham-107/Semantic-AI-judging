@@ -60,8 +60,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sketchai_token') : null;
     const s = io(serverUrl, {
       autoConnect: true,
+      auth: { token },
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
     });
@@ -140,6 +142,20 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    s.on('player:correct', (payload: { playerId: string; playerName: string; pointsAwarded: number }) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(),
+          senderName: payload.playerName,
+          text: `🎯 ${payload.playerName} guessed the word! (+${payload.pointsAwarded} pts)`,
+          type: 'correct',
+          pointsAwarded: payload.pointsAwarded,
+          timestamp: Date.now(),
+        },
+      ]);
+    });
+
     s.on('guess:correctAnnounce', (payload: CorrectGuesserInfo) => {
       setMessages((prev) => [
         ...prev,
@@ -187,9 +203,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     async (playerName: string, settings?: Partial<RoomSettings>, avatarSeed?: string): Promise<string> => {
       return new Promise((resolve, reject) => {
         if (!socketRef.current) return reject('Socket not ready');
+        const token = localStorage.getItem('sketchai_token') || undefined;
         socketRef.current.emit(
           'room:create',
-          { playerName, settings, avatarSeed },
+          { playerName, settings, avatarSeed, token },
           (res: { success: boolean; roomCode?: string; error?: string; player?: Player }) => {
             if (res.success && res.roomCode && res.player) {
               setCurrentPlayer(res.player);
@@ -208,9 +225,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     async (roomCode: string, playerName: string, avatarSeed?: string): Promise<void> => {
       return new Promise((resolve, reject) => {
         if (!socketRef.current) return reject('Socket not ready');
+        const token = localStorage.getItem('sketchai_token') || undefined;
         socketRef.current.emit(
           'room:join',
-          { roomCode: roomCode.trim().toUpperCase(), playerName, avatarSeed },
+          { roomCode: roomCode.trim().toUpperCase(), playerName, avatarSeed, token },
           (res: { success: boolean; error?: string; player?: Player }) => {
             if (res.success && res.player) {
               setCurrentPlayer(res.player);

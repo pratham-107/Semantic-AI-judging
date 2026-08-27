@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SocketProvider, useSocketGame } from '../context/SocketContext';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
+import { AuthModal } from '../components/AuthModal';
 import { LobbyView } from '../components/LobbyView';
 import { GameView } from '../components/GameView';
 import { ChalkboardHeroCanvas } from '../components/ChalkboardHeroCanvas';
@@ -24,10 +25,11 @@ import {
 
 function MainApp() {
   const { room, createRoom, joinRoom } = useSocketGame();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [playerName, setPlayerName] = useState('');
   const [roomCodeInput, setRoomCodeInput] = useState('');
@@ -190,6 +192,11 @@ function MainApp() {
                 whileTap={{ scale: 0.95 }}
                 type="button"
                 onClick={() => {
+                  if (!isAuthenticated) {
+                    setShowAuthModal(true);
+                    soundManager?.playPop();
+                    return;
+                  }
                   setErrorMsg('');
                   setShowCreateModal(true);
                   soundManager?.playPop();
@@ -205,6 +212,11 @@ function MainApp() {
                 whileTap={{ scale: 0.95 }}
                 type="button"
                 onClick={() => {
+                  if (!isAuthenticated) {
+                    setShowAuthModal(true);
+                    soundManager?.playPop();
+                    return;
+                  }
                   setErrorMsg('');
                   setShowJoinModal(true);
                   soundManager?.playPop();
@@ -570,6 +582,9 @@ function MainApp() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Student Authentication Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 }
