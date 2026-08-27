@@ -142,10 +142,14 @@ export function Canvas({ isDrawer, disabled = false }: CanvasProps) {
 
     socket.on('stroke:broadcast', handleStrokeBroadcast);
     socket.on('stroke:clear', handleRemoteClear);
+    socket.on('round:start', handleRemoteClear);
+    socket.on('round:end', handleRemoteClear);
 
     return () => {
       socket.off('stroke:broadcast', handleStrokeBroadcast);
       socket.off('stroke:clear', handleRemoteClear);
+      socket.off('round:start', handleRemoteClear);
+      socket.off('round:end', handleRemoteClear);
     };
   }, [socket, drawSegment, handleClearLocal]);
 

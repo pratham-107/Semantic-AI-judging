@@ -124,6 +124,7 @@ export function registerRoomHandlers(
     const { room: updatedRoom, currentRound, drawer } = roundData;
 
     // Broadcast room state
+    io.to(roomCode).emit('stroke:clear');
     io.to(roomCode).emit('room:state', updatedRoom);
 
     // Public round start hint broadcast

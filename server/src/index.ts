@@ -192,6 +192,7 @@ async function handleRoundEnd(roomCode: string) {
         const nextRoundData = await RoundService.startNextRound(roomCode, handleRoundEnd);
         if (nextRoundData) {
           const { room: updatedRoom, currentRound, drawer } = nextRoundData;
+          io.to(roomCode).emit('stroke:clear');
           io.to(roomCode).emit('room:state', updatedRoom);
           io.to(roomCode).emit('round:start', {
             roundNumber: currentRound.roundNumber,
