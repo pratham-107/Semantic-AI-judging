@@ -3,10 +3,12 @@
 class SoundManager {
   private ctx: AudioContext | null = null;
   private isMusicPlaying = false;
+  private musicEnabled = true; // Default to ON
   private musicVolume = 0.25;
   private sfxVolume = 0.4;
   private musicInterval: any = null;
   private noteIndex = 0;
+  private listenerAttached = false;
 
   // Catchy, joyful Lo-Fi classroom melody notes (frequencies in Hz)
   // Pentatonic scale: C4, D4, E4, G4, A4, C5, D5, E5, G5
@@ -36,6 +38,26 @@ class SoundManager {
     146.83, // D3
     196.00,
   ];
+
+  constructor() {
+    this.initAutoPlayListener();
+  }
+
+  private initAutoPlayListener() {
+    if (typeof window === 'undefined' || this.listenerAttached) return;
+    this.listenerAttached = true;
+
+    const handleFirstUserGesture = () => {
+      if (this.musicEnabled && !this.isMusicPlaying) {
+        this.startBackgroundMusic();
+      }
+    };
+
+    window.addEventListener('pointerdown', handleFirstUserGesture, { once: true });
+    window.addEventListener('keydown', handleFirstUserGesture, { once: true });
+    window.addEventListener('touchstart', handleFirstUserGesture, { once: true });
+    window.addEventListener('click', handleFirstUserGesture, { once: true });
+  }
 
   private getContext(): AudioContext {
     if (!this.ctx) {
@@ -76,9 +98,11 @@ class SoundManager {
   // Background Music Loop
   public toggleBackgroundMusic(): boolean {
     if (this.isMusicPlaying) {
+      this.musicEnabled = false;
       this.stopBackgroundMusic();
       return false;
     } else {
+      this.musicEnabled = true;
       this.startBackgroundMusic();
       return true;
     }
@@ -87,7 +111,11 @@ class SoundManager {
   public startBackgroundMusic() {
     if (this.isMusicPlaying) return;
     this.isMusicPlaying = true;
-    this.getContext();
+    this.musicEnabled = true;
+
+    try {
+      this.getContext();
+    } catch {}
 
     let step = 0;
     this.musicInterval = setInterval(() => {
@@ -122,6 +150,10 @@ class SoundManager {
 
   public isPlaying(): boolean {
     return this.isMusicPlaying;
+  }
+
+  public isMusicEnabled(): boolean {
+    return this.musicEnabled;
   }
 
   public setMusicVolume(val: number) {

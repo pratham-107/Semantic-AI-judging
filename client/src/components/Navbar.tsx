@@ -26,12 +26,17 @@ export function Navbar() {
   const [showRules, setShowRules] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(true);
 
   useEffect(() => {
-    if (soundManager) {
-      setIsMusicPlaying(soundManager.isPlaying());
-    }
+    const syncMusic = () => {
+      if (soundManager) {
+        setIsMusicPlaying(soundManager.isPlaying() || soundManager.isMusicEnabled());
+      }
+    };
+    syncMusic();
+    const interval = setInterval(syncMusic, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleToggleMusic = () => {
