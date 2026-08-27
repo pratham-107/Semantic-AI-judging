@@ -15,6 +15,24 @@
     --background: var(--paper);
     --foreground: var(--pencil-graphite);
   }
+
+  html,
+  body {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 }
 
 /* Custom Chalkboard textures and utilities */
@@ -87,34 +105,25 @@
   box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.25);
 }
 
-/* Torn paper edge SVG mask / divider */
-.torn-edge-top {
-  position: relative;
-}
-
-.torn-edge-top::before {
-  content: '';
-  position: absolute;
-  top: -12px;
-  left: 0;
-  right: 0;
-  height: 12px;
-  background-size: 24px 12px;
-  background-repeat: repeat-x;
-  background-image: radial-gradient(circle at 12px 0px, transparent 6px, #FBF6E9 6.5px);
-}
-
-/* Blackboard chalk frame */
+/* Blackboard chalk frame with responsive borders */
 .chalkboard-frame {
-  border: 12px solid #5A3825;
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 10px 25px rgba(0, 0, 0, 0.4);
-  border-radius: 14px;
+  border: 6px solid #5A3825;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8), 0 6px 18px rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
+}
+
+@media (min-width: 640px) {
+  .chalkboard-frame {
+    border: 10px solid #5A3825;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 10px 25px rgba(0, 0, 0, 0.4);
+    border-radius: 14px;
+  }
 }
 
 /* Custom Scrollbar for chat */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.1);
