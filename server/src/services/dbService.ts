@@ -15,26 +15,29 @@ export interface UserRecord {
 class DatabaseService {
   private pool: pg.Pool | null = null;
   private isConnected = false;
-  private memoryUsers: Map<string, UserRecord> = new Map(); // Fallback for local testing without DB
+  private memoryUsers: Map<string, UserRecord> = new Map();
 
   constructor() {
     const dbUrl = process.env.DATABASE_URL;
     if (dbUrl) {
+      console.log(' Initializing database pool with DATABASE_URL...');
       this.pool = new Pool({
         connectionString: dbUrl,
         ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 10000,
       });
 
       this.pool
         .connect()
         .then((client) => {
-          console.log(' Connected to PostgreSQL database for match history & auth.');
+          console.log('✅ Connected to PostgreSQL database successfully (Supabase/Postgres).');
           this.isConnected = true;
           client.release();
           this.initTables();
         })
         .catch((err: Error) => {
-          console.warn(' PostgreSQL connection failed (running in-memory fallback):', err.message);
+          console.error('❌ PostgreSQL connection failed on startup:', err.message);
+          console.warn('⚠️ If running on Render, ensure you are using Supabase Connection Pooler URI (IPv4 compatible).');
           this.isConnected = false;
         });
     } else {
@@ -43,7 +46,7 @@ class DatabaseService {
   }
 
   private async initTables() {
-    if (!this.pool || !this.isConnected) return;
+    if (!this.pool) return;
     try {
       await this.pool.query(`
         CREATE TABLE IF NOT EXISTS users (
@@ -82,6 +85,7 @@ class DatabaseService {
           drawer_score INT NOT NULL
         );
       `);
+      console.log(' Verified schema tables in PostgreSQL.');
     } catch (err: unknown) {
       console.warn('Failed to auto-init Postgres tables:', (err as Error).message);
     }
@@ -99,13 +103,22 @@ class DatabaseService {
       created_at: new Date(),
     };
 
-    if (this.pool && this.isConnected) {
-      await this.pool.query(
-        `INSERT INTO users (id, username, email, password_hash, created_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [id, username, email, passwordHash, newUser.created_at]
-      );
-      return newUser;
+    if (this.pool) {
+      try {
+        await this.pool.query(
+          `INSERT INTO users (id, username, email, password_hash, created_at)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [id, username, email, passwordHash, newUser.created_at]
+        );
+        console.log(` Persisted new user '${username}' (${email}) to PostgreSQL database.`);
+        this.isConnected = true;
+        return newUser;
+      } catch (err: unknown) {
+        console.error(`❌ Failed to insert user into PostgreSQL:`, (err as Error).message);
+        // If Postgres fails, fall back to memory
+        this.memoryUsers.set(id, newUser);
+        return newUser;
+      }
     }
 
     // Memory fallback
@@ -116,15 +129,21 @@ class DatabaseService {
   public async findUserByEmailOrUsername(identifier: string): Promise<UserRecord | null> {
     const clean = identifier.trim().toLowerCase();
 
-    if (this.pool && this.isConnected) {
-      const res = await this.pool.query<UserRecord>(
-        `SELECT * FROM users WHERE LOWER(email) = $1 OR LOWER(username) = $1 LIMIT 1`,
-        [clean]
-      );
-      return res.rows[0] || null;
+    if (this.pool) {
+      try {
+        const res = await this.pool.query<UserRecord>(
+          `SELECT * FROM users WHERE LOWER(email) = $1 OR LOWER(username) = $1 LIMIT 1`,
+          [clean]
+        );
+        if (res.rows[0]) {
+          return res.rows[0];
+        }
+      } catch (err: unknown) {
+        console.error(`❌ Error querying user from PostgreSQL:`, (err as Error).message);
+      }
     }
 
-    // Memory fallback
+    // Memory fallback check
     for (const u of this.memoryUsers.values()) {
       if (u.email.toLowerCase() === clean || u.username.toLowerCase() === clean) {
         return u;
@@ -134,15 +153,19 @@ class DatabaseService {
   }
 
   public async findUserById(id: string): Promise<UserRecord | null> {
-    if (this.pool && this.isConnected) {
-      const res = await this.pool.query<UserRecord>(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [id]);
-      return res.rows[0] || null;
+    if (this.pool) {
+      try {
+        const res = await this.pool.query<UserRecord>(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [id]);
+        if (res.rows[0]) return res.rows[0];
+      } catch (err: unknown) {
+        console.error(`❌ Error querying user by ID:`, (err as Error).message);
+      }
     }
     return this.memoryUsers.get(id) || null;
   }
 
   public async getUserStats(username: string) {
-    if (this.pool && this.isConnected) {
+    if (this.pool) {
       try {
         const res = await this.pool.query(
           `SELECT 
@@ -165,7 +188,7 @@ class DatabaseService {
   // --- MATCH HISTORY QUERIES ---
 
   public async saveMatch(room: Room, gameEndData: GameEndPayload): Promise<void> {
-    if (!this.pool || !this.isConnected) return;
+    if (!this.pool) return;
 
     try {
       const matchId = uuidv4();
@@ -208,7 +231,7 @@ class DatabaseService {
   }
 
   public async getLeaderboard(limit = 10) {
-    if (!this.pool || !this.isConnected) return [];
+    if (!this.pool) return [];
     try {
       const res = await this.pool.query(
         `SELECT player_name, MAX(final_score) as high_score, COUNT(*) as matches_played,
