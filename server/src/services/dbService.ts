@@ -4,32 +4,41 @@ import { Room, GameEndPayload } from '../types/room.types.js';
 
 const { Pool } = pg;
 
+export interface UserRecord {
+  id: string;
+  username: string;
+  email: string;
+  password_hash: string;
+  created_at: Date;
+}
+
 class DatabaseService {
   private pool: pg.Pool | null = null;
   private isConnected = false;
+  private memoryUsers: Map<string, UserRecord> = new Map(); // Fallback for local testing without DB
 
   constructor() {
     const dbUrl = process.env.DATABASE_URL;
     if (dbUrl) {
       this.pool = new Pool({
         connectionString: dbUrl,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+        ssl: { rejectUnauthorized: false },
       });
 
       this.pool
         .connect()
         .then((client) => {
-          console.log(' Connected to PostgreSQL database for match history.');
+          console.log(' Connected to PostgreSQL database for match history & auth.');
           this.isConnected = true;
           client.release();
           this.initTables();
         })
         .catch((err: Error) => {
-          console.warn(' PostgreSQL connection failed (running without persistent DB):', err.message);
+          console.warn(' PostgreSQL connection failed (running in-memory fallback):', err.message);
           this.isConnected = false;
         });
     } else {
-      console.log('ℹ️ No DATABASE_URL provided — match history will remain in-memory.');
+      console.log('ℹ️ No DATABASE_URL provided — match history and users will remain in-memory.');
     }
   }
 
@@ -37,6 +46,14 @@ class DatabaseService {
     if (!this.pool || !this.isConnected) return;
     try {
       await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id UUID PRIMARY KEY,
+          username VARCHAR(32) UNIQUE NOT NULL,
+          email VARCHAR(128) UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
         CREATE TABLE IF NOT EXISTS matches (
           id UUID PRIMARY KEY,
           room_code VARCHAR(10) NOT NULL,
@@ -70,9 +87,83 @@ class DatabaseService {
     }
   }
 
-  /**
-   * Asynchronously persists a completed match to PostgreSQL without blocking the game loop.
-   */
+  // --- USER AUTHENTICATION QUERIES ---
+
+  public async createUser(username: string, email: string, passwordHash: string): Promise<UserRecord> {
+    const id = uuidv4();
+    const newUser: UserRecord = {
+      id,
+      username,
+      email,
+      password_hash: passwordHash,
+      created_at: new Date(),
+    };
+
+    if (this.pool && this.isConnected) {
+      await this.pool.query(
+        `INSERT INTO users (id, username, email, password_hash, created_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, username, email, passwordHash, newUser.created_at]
+      );
+      return newUser;
+    }
+
+    // Memory fallback
+    this.memoryUsers.set(id, newUser);
+    return newUser;
+  }
+
+  public async findUserByEmailOrUsername(identifier: string): Promise<UserRecord | null> {
+    const clean = identifier.trim().toLowerCase();
+
+    if (this.pool && this.isConnected) {
+      const res = await this.pool.query<UserRecord>(
+        `SELECT * FROM users WHERE LOWER(email) = $1 OR LOWER(username) = $1 LIMIT 1`,
+        [clean]
+      );
+      return res.rows[0] || null;
+    }
+
+    // Memory fallback
+    for (const u of this.memoryUsers.values()) {
+      if (u.email.toLowerCase() === clean || u.username.toLowerCase() === clean) {
+        return u;
+      }
+    }
+    return null;
+  }
+
+  public async findUserById(id: string): Promise<UserRecord | null> {
+    if (this.pool && this.isConnected) {
+      const res = await this.pool.query<UserRecord>(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [id]);
+      return res.rows[0] || null;
+    }
+    return this.memoryUsers.get(id) || null;
+  }
+
+  public async getUserStats(username: string) {
+    if (this.pool && this.isConnected) {
+      try {
+        const res = await this.pool.query(
+          `SELECT 
+            COUNT(*) as matches_played,
+            COALESCE(MAX(final_score), 0) as high_score,
+            COALESCE(SUM(final_score), 0) as total_score,
+            COUNT(CASE WHEN rank = 1 THEN 1 END) as wins
+           FROM match_players
+           WHERE LOWER(player_name) = LOWER($1)`,
+          [username]
+        );
+        return res.rows[0];
+      } catch {
+        return { matches_played: 0, high_score: 0, total_score: 0, wins: 0 };
+      }
+    }
+    return { matches_played: 0, high_score: 0, total_score: 0, wins: 0 };
+  }
+
+  // --- MATCH HISTORY QUERIES ---
+
   public async saveMatch(room: Room, gameEndData: GameEndPayload): Promise<void> {
     if (!this.pool || !this.isConnected) return;
 
@@ -116,14 +207,12 @@ class DatabaseService {
     }
   }
 
-  /**
-   * Retrieves global match leaderboards.
-   */
   public async getLeaderboard(limit = 10) {
     if (!this.pool || !this.isConnected) return [];
     try {
       const res = await this.pool.query(
-        `SELECT player_name, MAX(final_score) as high_score, COUNT(*) as matches_played
+        `SELECT player_name, MAX(final_score) as high_score, COUNT(*) as matches_played,
+                COUNT(CASE WHEN rank = 1 THEN 1 END) as wins
          FROM match_players
          GROUP BY player_name
          ORDER BY high_score DESC

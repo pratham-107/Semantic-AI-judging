@@ -1,4 +1,12 @@
--- SketchAI PostgreSQL Schema (Durable storage for matches and leaderboards)
+-- SketchAI PostgreSQL Schema (Durable storage for users, matches, and leaderboards)
+
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY,
+  username VARCHAR(32) UNIQUE NOT NULL,
+  email VARCHAR(128) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS matches (
   id UUID PRIMARY KEY,
@@ -28,5 +36,7 @@ CREATE TABLE IF NOT EXISTS rounds (
   drawer_score INT NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(LOWER(username));
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_match_players_score ON match_players(final_score DESC);
 CREATE INDEX IF NOT EXISTS idx_matches_started_at ON matches(started_at DESC);

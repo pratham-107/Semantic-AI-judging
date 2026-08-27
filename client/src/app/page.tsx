@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SocketProvider, useSocketGame } from '../context/SocketContext';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
 import { LobbyView } from '../components/LobbyView';
 import { GameView } from '../components/GameView';
@@ -23,6 +24,7 @@ import {
 
 function MainApp() {
   const { room, createRoom, joinRoom } = useSocketGame();
+  const { user } = useAuth();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -33,6 +35,12 @@ function MainApp() {
   const [roundDuration, setRoundDuration] = useState(80);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (user?.username) {
+      setPlayerName(user.username);
+    }
+  }, [user]);
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -568,8 +576,10 @@ function MainApp() {
 
 export default function HomePage() {
   return (
-    <SocketProvider>
-      <MainApp />
-    </SocketProvider>
+    <AuthProvider>
+      <SocketProvider>
+        <MainApp />
+      </SocketProvider>
+    </AuthProvider>
   );
 }

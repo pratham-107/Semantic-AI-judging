@@ -3,12 +3,29 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocketGame } from '../context/SocketContext';
+import { useAuth } from '../context/AuthContext';
 import { soundManager } from '../lib/soundManager';
-import { Pencil, HelpCircle, LogOut, Sparkles, X, Volume2, VolumeX, Music } from 'lucide-react';
+import { AuthModal } from './AuthModal';
+import {
+  Pencil,
+  HelpCircle,
+  LogOut,
+  Sparkles,
+  X,
+  Volume2,
+  VolumeX,
+  User,
+  GraduationCap,
+  Trophy,
+} from 'lucide-react';
 
 export function Navbar() {
   const { connected, room, leaveRoom } = useSocketGame();
+  const { user, stats, isAuthenticated, logout } = useAuth();
+
   const [showRules, setShowRules] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
 
   useEffect(() => {
@@ -120,6 +137,84 @@ export function Navbar() {
               <span className="hidden sm:inline">Rules</span>
             </motion.button>
 
+            {/* User Profile / Login Button */}
+            {isAuthenticated && user ? (
+              <div className="relative">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  type="button"
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="flex items-center gap-2 bg-[#1F3D33] border border-[#F4B942]/40 px-3 py-1 rounded-lg text-xs font-mono font-bold text-[#F6F3EA] shadow"
+                >
+                  <div className="w-5 h-5 rounded-full bg-[#F4B942] text-[#16302A] flex items-center justify-center text-[10px]">
+                    {user.username.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="max-w-[80px] truncate">{user.username}</span>
+                </motion.button>
+
+                {/* Profile dropdown */}
+                <AnimatePresence>
+                  {showProfileMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute right-0 mt-2 w-52 bg-[#16302A] border border-[#F6F3EA]/20 rounded-xl p-3 shadow-2xl z-50 space-y-2 text-xs font-mono"
+                    >
+                      <div className="pb-2 border-b border-[#F6F3EA]/10">
+                        <div className="font-bold text-[#F4B942]">{user.username}</div>
+                        <div className="text-[10px] text-[#F6F3EA]/60">{user.email || 'Student Desk'}</div>
+                      </div>
+
+                      {stats && (
+                        <div className="space-y-1 text-[11px] text-[#F6F3EA]/80">
+                          <div className="flex justify-between">
+                            <span>Matches:</span>
+                            <span className="font-bold text-white">{stats.matches_played}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Wins:</span>
+                            <span className="font-bold text-amber-300">🏆 {stats.wins}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>High Score:</span>
+                            <span className="font-bold text-green-400">{stats.high_score} pts</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          logout();
+                          setShowProfileMenu(false);
+                          soundManager?.playPop();
+                        }}
+                        className="w-full pt-2 border-t border-[#F6F3EA]/10 text-left text-red-400 hover:text-red-300 flex items-center gap-1.5"
+                      >
+                        <LogOut className="w-3.5 h-3.5" /> Sign Out
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                type="button"
+                onClick={() => {
+                  setShowAuthModal(true);
+                  soundManager?.playPop();
+                }}
+                className="flex items-center gap-1 text-xs font-mono font-bold bg-[#F4B942] text-[#16302A] px-3 py-1.5 rounded-lg btn-chalk hover:bg-amber-400 shadow"
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span>Log In</span>
+              </motion.button>
+            )}
+
             {/* If in room: Room Code & Leave */}
             {room && (
               <div className="flex items-center gap-2">
@@ -150,7 +245,10 @@ export function Navbar() {
         </div>
       </motion.header>
 
-      {/* Classroom Rules Modal with Framer Motion AnimatePresence */}
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
+      {/* Classroom Rules Modal */}
       <AnimatePresence>
         {showRules && (
           <motion.div
