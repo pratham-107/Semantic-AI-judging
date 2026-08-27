@@ -31,7 +31,15 @@ const io = new Server(httpServer, {
 });
 
 // REST Endpoints
-app.get('/health', (_req, res) => {
+app.all('/', (_req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'sketchai-game-server',
+    timestamp: Date.now(),
+  });
+});
+
+app.all('/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'sketchai-game-server',

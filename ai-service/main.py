@@ -52,7 +52,11 @@ class EmbedCacheResponse(BaseModel):
     status: str
     roundId: str
 
-@app.get("/health")
+@app.api_route("/", methods=["GET", "HEAD"])
+def root():
+    return {"status": "ok", "service": "sketchai-ai-judge"}
+
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health():
     return {
         "status": "ok",
